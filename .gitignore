@@ -58,3 +58,4 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # 환경 변수 파일 무시
 .env.*
 config/**/*.env*
+node_modules
