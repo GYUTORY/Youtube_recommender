@@ -433,5 +433,132 @@ export class RecommendCommand {
   });
   ```
 
+## 💅 코드 스타일 및 커밋 메시지 규칙
+
+### 코드 스타일 도구
+
+프로젝트는 Prettier와 ESLint를 사용하여 일관된 코드 스타일을 유지합니다.
+
+#### Prettier 설정
+
+```json
+{
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "semi": true,
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "endOfLine": "lf"
+}
+```
+
+#### ESLint 설정
+
+```javascript
+module.exports = {
+  parser: '@typescript-eslint/parser',
+  plugins: ['@typescript-eslint/eslint-plugin', 'prettier'],
+  extends: [
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended',
+  ],
+  rules: {
+    '@typescript-eslint/interface-name-prefix': 'off',
+    '@typescript-eslint/explicit-function-return-type': 'warn',
+    '@typescript-eslint/explicit-module-boundary-types': 'warn',
+    '@typescript-eslint/no-explicit-any': 'warn',
+    'prettier/prettier': 'error',
+  },
+};
+```
+
+### 코드 스타일 검사 및 수정
+
+```bash
+# 코드 스타일 검사
+npm run lint
+
+# 코드 스타일 자동 수정
+npm run format
+```
+
+### 커밋 메시지 규칙
+
+프로젝트는 [Conventional Commits](https://www.conventionalcommits.org/) 규칙을 따릅니다.
+
+#### 커밋 타입
+
+- `feat`: 새로운 기능
+- `fix`: 버그 수정
+- `docs`: 문서 변경
+- `style`: 코드 포맷팅, 세미콜론 누락, 코드 변경이 없는 경우
+- `refactor`: 코드 리팩토링
+- `test`: 테스트 코드 추가/수정
+- `chore`: 빌드 프로세스 또는 보조 도구 변경
+- `ci`: CI 설정 파일 변경
+- `perf`: 성능 개선
+- `revert`: 이전 커밋으로 되돌림
+
+#### 커밋 메시지 형식
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+예시:
+```
+feat(youtube): add music recommendation by year
+
+- Implement YouTube API integration
+- Add year-based search functionality
+- Add error handling for API responses
+
+Closes #123
+```
+
+### Git Hooks
+
+프로젝트는 husky와 lint-staged를 사용하여 커밋 전 자동 검사를 수행합니다.
+
+#### 자동 검사 항목
+
+1. **코드 스타일 검사**
+   - Prettier 포맷팅
+   - ESLint 검사
+
+2. **커밋 메시지 검사**
+   - Conventional Commits 규칙 준수 여부
+   - 커밋 메시지 형식 검사
+
+#### Git Hooks 설정
+
+```bash
+# husky 설치
+npm run prepare
+
+# pre-commit 훅 설정
+npx husky add .husky/pre-commit "npx lint-staged && npx --no -- commitlint --edit $1"
+```
+
+#### lint-staged 설정
+
+```json
+{
+  "lint-staged": {
+    "*.ts": [
+      "prettier --write",
+      "eslint --fix",
+      "git add"
+    ]
+  }
+}
+```
+
 ## 👥 작성자
 - **Your Name** - *Initial work* - [YourGitHub](https://github.com/GYUTORY)
