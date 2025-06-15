@@ -232,6 +232,24 @@ test/
 
 ## 🐳 Docker 실행
 
+### Docker Compose 사용
+
+```bash
+# 환경 변수 설정
+cp config/dev/.env.ytb.example config/dev/.env.ytb
+
+# Docker Compose로 실행
+docker-compose up -d
+
+# 로그 확인
+docker-compose logs -f
+
+# 컨테이너 중지
+docker-compose down
+```
+
+### 단일 Docker 컨테이너 실행
+
 ```bash
 # 이미지 빌드
 docker build -t nostalgia-music-recommender .
