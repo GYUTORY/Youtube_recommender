@@ -2,6 +2,8 @@ import { registerAs } from '@nestjs/config';
 
 export interface YoutubeConfig {
   apiKey: string;
+  searchQueryTemplate: string;
+  maxResults: number;
 }
 
 export interface AppConfig {
@@ -24,13 +26,10 @@ const validateConfig = (config: AppConfig) => {
   }
 };
 
-export default registerAs('app', (): AppConfig => {
-  const config: AppConfig = {
-    youtube: {
-      apiKey: process.env.YOUTUBE_API_KEY,
-    },
-  };
-
-  validateConfig(config);
-  return config;
+export default () => ({
+  youtube: {
+    apiKey: process.env.YOUTUBE_API_KEY || '',
+    searchQueryTemplate: process.env.YOUTUBE_SEARCH_QUERY_TEMPLATE || '{year}년대 인기곡',
+    maxResults: parseInt(process.env.YOUTUBE_API_MAX_RESULTS || '10', 10),
+  },
 }); 

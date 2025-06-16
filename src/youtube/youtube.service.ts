@@ -1,84 +1,60 @@
 import { Injectable } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { google } from 'googleapis';
 import { YouTubeAPIException } from './exceptions/youtube-api.exception';
-import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class YouTubeService {
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {}
+  private readonly youtube;
+  private readonly searchQueryTemplate: string;
+  private readonly maxResults: number;
+
+  constructor(private readonly configService: ConfigService) {
+    const apiKey = this.configService.get<string>('YOUTUBE_API_KEY');
+    if (!apiKey) {
+      throw new Error('YouTube API 키가 설정되지 않았습니다.');
+    }
+
+    this.youtube = google.youtube({
+      version: 'v3',
+      auth: apiKey,
+    });
+
+    this.searchQueryTemplate = this.configService.get<string>('YOUTUBE_SEARCH_QUERY_TEMPLATE') || '{year}년대 인기곡';
+    this.maxResults = this.configService.get<number>('YOUTUBE_API_MAX_RESULTS') || 10;
+  }
 
   async searchByYear(year: number) {
     try {
-      const apiKey = this.configService.get<string>('YOUTUBE_API_KEY');
-      if (!apiKey) {
-        throw new YouTubeAPIException(
-          'YouTube API 키가 설정되지 않았습니다.',
-          'API_KEY_INVALID'
-        );
-      }
-
-      const query = this.createSearchQuery(year);
-      const response = await firstValueFrom(
-        this.httpService.get('https://www.googleapis.com/youtube/v3/search', {
-          params: {
-            key: apiKey,
-            part: 'snippet',
-            q: query,
-            type: 'video',
-            maxResults: 50,
-            videoCategoryId: '10', // Music category
-          },
-        })
-      );
+      const query = this.buildSearchQuery(year);
+      const response = await this.youtube.search.list({
+        part: ['snippet'],
+        q: query,
+        type: ['video'],
+        maxResults: this.maxResults,
+        videoCategoryId: '10', // 음악 카테고리
+        order: 'viewCount', // 조회수 순
+      });
 
       if (!response.data.items || response.data.items.length === 0) {
-        throw new YouTubeAPIException(
-          `${year}년대의 음악을 찾을 수 없습니다.`,
-          'NO_RESULTS'
-        );
+        throw new YouTubeAPIException('검색 결과가 없습니다.', 'NO_RESULTS');
       }
 
-      const randomVideo = this.getRandomVideo(response.data.items);
-      return this.transformVideoData(randomVideo);
+      return response.data.items.map(item => ({
+        videoId: item.id?.videoId,
+        title: item.snippet?.title,
+        channelTitle: item.snippet?.channelTitle,
+        publishedAt: item.snippet?.publishedAt,
+      }));
     } catch (error) {
       if (error instanceof YouTubeAPIException) {
         throw error;
       }
-
-      if (error.response?.status === 403) {
-        throw new YouTubeAPIException(
-          'YouTube API 할당량이 초과되었습니다.',
-          'QUOTA_EXCEEDED'
-        );
-      }
-
-      throw new YouTubeAPIException(
-        'YouTube API 호출 중 오류가 발생했습니다.',
-        'UNKNOWN_ERROR'
-      );
+      throw new YouTubeAPIException(`YouTube API 호출 중 오류가 발생했습니다: ${error.message}`, 'UNKNOWN_ERROR');
     }
   }
 
-  private createSearchQuery(year: number): string {
-    const template = this.configService.get<string>('YOUTUBE_SEARCH_QUERY_TEMPLATE');
-    return template.replace('{year}', year.toString());
-  }
-
-  private getRandomVideo(items: any[]): any {
-    const randomIndex = Math.floor(Math.random() * items.length);
-    return items[randomIndex];
-  }
-
-  private transformVideoData(video: any) {
-    return {
-      title: video.snippet.title,
-      channelTitle: video.snippet.channelTitle,
-      publishedAt: video.snippet.publishedAt.slice(0, 4),
-      url: `https://youtube.com/watch?v=${video.id.videoId}`,
-    };
+  private buildSearchQuery(year: number): string {
+    return this.searchQueryTemplate.replace('{year}', year.toString());
   }
 } 

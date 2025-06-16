@@ -1,71 +1,60 @@
-import { Command } from 'nestjs-command';
+import { Command, CommandRunner } from 'nest-commander';
 import { Injectable } from '@nestjs/common';
 import { YouTubeService } from '../../youtube/youtube.service';
 import * as inquirer from 'inquirer';
 import { YouTubeAPIException } from '../../youtube/exceptions/youtube-api.exception';
 
-@Injectable()
-export class RecommendCommand {
-  constructor(private readonly youtubeService: YouTubeService) {}
+@Command({
+  name: 'recommend',
+  description: '특정 연도대의 인기 음악을 추천합니다.',
+  arguments: '<year>',
+})
+export class RecommendCommand extends CommandRunner {
+  constructor(private readonly youtubeService: YouTubeService) {
+    super();
+  }
 
-  @Command({
-    command: 'recommend',
-    describe: '특정 연도대의 인기 음악을 추천합니다',
-    options: [
-      {
-        flags: '-y, --year <year>',
-        description: '추천할 연도 (예: 2000)',
-      },
-      {
-        flags: '-i, --interactive',
-        description: '인터랙티브 모드로 실행',
-      },
-    ],
-  })
-  async recommend(options: { year?: number; interactive?: boolean }) {
-    try {
-      const year = options.interactive
-        ? await this.selectYear()
-        : options.year;
+  async run(passedParams: string[], options?: Record<string, any>): Promise<void> {
+    let year: number;
 
-      if (!year) {
-        throw new Error('연도를 입력해주세요.');
+    if (options?.interactive) {
+      const { year: selectedYear } = await (inquirer as any).prompt([
+        {
+          type: 'input',
+          name: 'year',
+          message: '추천받을 연도를 입력하세요 (예: 2000):',
+          validate: (input: string) => {
+            const year = parseInt(input);
+            if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+              return '유효한 연도를 입력해주세요 (1900년 이후)';
+            }
+            return true;
+          },
+        },
+      ]);
+      year = parseInt(selectedYear);
+    } else {
+      year = parseInt(passedParams[0]);
+      if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+        console.error('유효한 연도를 입력해주세요 (1900년 이후)');
+        return;
       }
-
-      const recommendation = await this.youtubeService.searchByYear(year);
-      this.displayRecommendation(recommendation);
-    } catch (error) {
-      this.handleError(error);
     }
-  }
 
-  private async selectYear(): Promise<number> {
-    const yearRanges = [
-      { name: '90년대', value: 1990 },
-      { name: '2000년대', value: 2000 },
-      { name: '2010년대', value: 2010 },
-      { name: '2020년대', value: 2020 },
-    ];
+    try {
+      const recommendations = await this.youtubeService.searchByYear(year);
+      console.log(`\n🎵 ${year}년대 추억의 음악 🎵\n`);
+      
+      recommendations.forEach((video, index) => {
+        console.log(`${index + 1}. ${video.title}`);
+        console.log(`   아티스트: ${video.channelTitle}`);
+        console.log(`   URL: https://youtube.com/watch?v=${video.videoId}\n`);
+      });
 
-    const { year } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'year',
-        message: '어떤 연도대의 음악을 추천받으시겠습니까?',
-        choices: yearRanges,
-      },
-    ]);
-
-    return year;
-  }
-
-  private displayRecommendation(recommendation: any) {
-    console.log('\n🎵 추천 음악 🎵\n');
-    console.log(`제목: ${recommendation.title}`);
-    console.log(`아티스트: ${recommendation.channelTitle}`);
-    console.log(`발매년도: ${recommendation.publishedAt}`);
-    console.log(`URL: ${recommendation.url}\n`);
-    console.log(`실행 시간: ${new Date().toLocaleString()}\n`);
+      console.log(`실행 시간: ${new Date().toLocaleString()}\n`);
+    } catch (error) {
+      console.error('음악 추천을 가져오는 중 오류가 발생했습니다:', error.message);
+    }
   }
 
   private handleError(error: any) {
